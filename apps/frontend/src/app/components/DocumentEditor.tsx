@@ -22,6 +22,8 @@ registerLicense(
   'Ngo9BigBOggjHTQxAR8/V1NMaF1cXmhNYVJ2WmFZfVtgdV9DZVZUTGYuP1ZhSXxWdkZiWH9fdXJVR2BaWEE='
 );
 
+const localApiUrl = 'http://localhost:3000/api';
+
 export const DocumentEditor = () => {
   const [documentId, setDocumentId] = useState<number | undefined>();
   const [clauses, setClauses] = useState<string[]>([]);
@@ -129,7 +131,7 @@ export const DocumentEditor = () => {
         const data = await blob.text();
 
         if (documentId) {
-          await fetch(`http://localhost:3000/api/documents/${documentId}`, {
+          await fetch(`${localApiUrl}/api/documents/${documentId}`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -137,7 +139,7 @@ export const DocumentEditor = () => {
             body: JSON.stringify({ data }),
           });
         } else {
-          await fetch('http://localhost:3000/api/documents', {
+          await fetch(`${localApiUrl}/documents`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -170,7 +172,7 @@ export const DocumentEditor = () => {
     const editor = editorRef.current!.documentEditor;
 
     const loadSavedDocument = async () => {
-      const response = await fetch('http://localhost:3000/api/documents/saved');
+      const response = await fetch(`${localApiUrl}/documents/saved`);
       if (!response.ok) {
         alert(`Your document could not be loaded, try refreshing the page!`);
         return;
