@@ -11,7 +11,19 @@ module.exports = {
     ...createGlobPatternsForDependencies(__dirname),
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        nav: {
+          background: 'hsl(var(--nav-background))',
+        },
+        card: {
+          background: 'hsl(var(--card-background))',
+        },
+        secondary: 'hsl(var(--secondary))',
+      },
+    },
   },
   plugins: [],
 };

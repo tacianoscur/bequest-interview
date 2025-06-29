@@ -2,3 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 /* You can add global styles to this file, and also import other style files */
+
+@layer base {
+  :root {
+    --background: 216 40% 18%;
+    --foreground: 212 43% 18%;
+    --nav-background: 212 44% 18%;
+    --card-background: 213 40% 22%;
+    --secondary: 32 35% 75%;
+  }
+}
+
+body {
+  background-color: hsl(var(--background));
+}

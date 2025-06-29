@@ -12,7 +12,10 @@ import {
 } from '@syncfusion/ej2-react-documenteditor';
 import '@syncfusion/ej2-react-documenteditor/styles/material.css';
 import '@syncfusion/ej2-splitbuttons/styles/material.css';
+import { ChevronLeftIcon } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+
+const autoSaveBookmarkKey = '__autosave_cursor__';
 
 DocumentEditorContainerComponent.Inject(Toolbar);
 registerLicense(
@@ -47,43 +50,97 @@ export const DocumentEditor = () => {
     const editor = editorRef.current!.documentEditor;
 
     editor.contentChange = async () => {
-      console.log('Document Content changed');
+      // Remove previous cursor bookmark if exists
+      if (editor.getBookmarks().includes(autoSaveBookmarkKey)) {
+        editor.editor.deleteBookmark(autoSaveBookmarkKey);
+      }
+      // Insert new cursor bookmark
+      editor.editor.insertBookmark(autoSaveBookmarkKey);
+
       const blob = await editor.saveAsBlob('Docx');
-      const file = new File([blob], `Document.docx`, {
+      const file = new File([blob], 'autosave.docx', {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
 
-      console.log(file);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      await fetch('http://localhost:3000/api/save', {
+        method: 'POST',
+        body: formData,
+      });
     };
+  }, []);
+
+  useEffect(() => {
+    const editor = editorRef.current!.documentEditor;
+
+    const onDocumentChange = () => {
+      if (editor.getBookmarks().includes(autoSaveBookmarkKey)) {
+        editor.selection.navigateBookmark(autoSaveBookmarkKey);
+      }
+      // Unsubscribe after running once
+      editor.documentChange = () => {};
+    };
+
+    editor.documentChange = onDocumentChange;
+
+    const loadSavedDocument = async () => {
+      const response = await fetch('http://localhost:3000/api/load');
+      const blob = await response.blob();
+
+      const file = new File([blob], 'autosave.docx', {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+
+      editor.open(file);
+    };
+
+    loadSavedDocument();
   }, []);
 
   return (
     <>
-      <div className="px-24 bg-gray-300 pt-12 h-screen">
-        <div className="flex justify-end space-x-4 mb-4">
-          <button
-            className="bg-gray-500 text-white py-2 px-4 rounded"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            Open
-          </button>
-          <input
-            type="file"
-            accept=".docx"
-            ref={fileInputRef}
-            style={{ display: 'none' }}
-            onChange={handleOpen}
-          />
-          <button
-            className="bg-gray-500 text-white py-2 px-4 rounded"
-            onClick={handleDownload}
-          >
-            Download
-          </button>
+      <div className="p-4 lg:pt-12 w-full h-screen flex flex-col">
+        <div className="flex flex-col lg:flex-row justify-between gap-2 lg:gap-0 lg:items-center mb-4">
+          <div className="inline-flex space-x-4 items-center">
+            <button
+              className="rounded-full bg-card-background p-2 cursor-not-allowed"
+              onClick={() => {
+                console.log('Left navigation button clicked');
+              }}
+            >
+              <ChevronLeftIcon className="w-5 h-5 stroke-secondary" />
+            </button>
+
+            <h1 className="text-secondary text-3xl">Document Editor</h1>
+          </div>
+
+          <div className="flex justify-end space-x-4">
+            <button
+              className="bg-gray-500 text-white py-2 px-4 rounded"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Open
+            </button>
+            <input
+              type="file"
+              accept=".docx"
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+              onChange={handleOpen}
+            />
+            <button
+              className="bg-gray-500 text-white py-2 px-4 rounded"
+              onClick={handleDownload}
+            >
+              Download
+            </button>
+          </div>
         </div>
-        <div>
+        <div className="flex-1 flex h-full">
           <DocumentEditorContainerComponent
-            height="calc(100vh - 200px)"
+            height="100%"
             serviceUrl="https://ej2services.syncfusion.com/production/web-services/api/documenteditor/"
             enableToolbar={true}
             showPropertiesPane={false}
