@@ -4,10 +4,14 @@
   "license": "MIT",
   "scripts": {},
   "private": true,
+  "prisma": {
+    "schema": "./apps/backend/src/database/prisma/schema.prisma"
+  },
   "dependencies": {
     "@nestjs/common": "^10.0.2",
     "@nestjs/core": "^10.0.2",
     "@nestjs/platform-express": "^10.0.2",
+    "@prisma/client": "^6.10.1",
     "@syncfusion/ej2-react-documenteditor": "^28.2.11",
     "axios": "^1.6.0",
     "lucide-react": "^0.525.0",
