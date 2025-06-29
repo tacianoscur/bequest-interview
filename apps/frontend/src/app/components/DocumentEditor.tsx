@@ -12,10 +12,10 @@ import {
 } from '@syncfusion/ej2-react-documenteditor';
 import '@syncfusion/ej2-react-documenteditor/styles/material.css';
 import '@syncfusion/ej2-splitbuttons/styles/material.css';
-import { ChevronLeftIcon } from 'lucide-react';
+import { ChevronLeftIcon, SaveIcon, XIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-
-const autoSaveBookmarkKey = '__autosave_cursor__';
+import Button from './Button';
+import { predefinedClauses, PredefinedClauseType } from '../utils/clausesData';
 
 DocumentEditorContainerComponent.Inject(Toolbar);
 registerLicense(
@@ -24,9 +24,78 @@ registerLicense(
 
 export const DocumentEditor = () => {
   const [documentId, setDocumentId] = useState<number | undefined>();
+  const [clauses, setClauses] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<DocumentEditorContainerComponent>(null);
+
+  const updateClausesList = () => {
+    const editor = editorRef.current!.documentEditor;
+    const bookmarks = editor.getBookmarks();
+
+    const bookmarksWithPositions = bookmarks.map((name) => {
+      editor.selection.selectBookmark(name, false);
+      const index = editor.selection.getHierarchicalIndex(
+        editor.selection.start.paragraph,
+        editor.selection.start.offset.toString()
+      );
+      return { name, index };
+    });
+
+    bookmarksWithPositions.sort((a, b) => {
+      return a.index.localeCompare(b.index, undefined, { numeric: true });
+    });
+
+    setClauses(bookmarksWithPositions.map((b) => b.name));
+  };
+
+  const insertClauseBefore = (
+    beforeName: string,
+    newClause: PredefinedClauseType
+  ) => {
+    const editor = editorRef.current!.documentEditor;
+
+    if (beforeName === '__END__') {
+      editor.selection.moveToDocumentEnd();
+    } else {
+      editor.selection.selectBookmark(beforeName);
+      const start = editor.selection.start.clone();
+      editor.selection.selectRange(start, start);
+    }
+
+    const startIndex = editor.selection.getHierarchicalIndex(
+      editor.selection.start.paragraph,
+      editor.selection.start.offset.toString()
+    );
+
+    editor.editor.insertText('\n');
+    editor.editor.paste(newClause.content, 'KeepSourceFormatting');
+
+    const endIndex = editor.selection.getHierarchicalIndex(
+      editor.selection.end.paragraph,
+      editor.selection.end.offset.toString()
+    );
+
+    const newBookmark = newClause.name;
+    editor.selection.select(startIndex, endIndex);
+    editor.editor.insertBookmark(newBookmark);
+
+    updateClausesList();
+  };
+
+  const deleteClause = (name: string) => {
+    const editor = editorRef.current!.documentEditor;
+
+    const bookmark = editor
+      .getBookmarks()
+      .find((bookmark) => bookmark === name);
+    if (!bookmark) return;
+
+    editor.selection.selectBookmark(name, false);
+    editor.editor.delete();
+
+    updateClausesList();
+  };
 
   const handleOpen = (event: React.ChangeEvent<HTMLInputElement>) => {
     const fileInput = event.target.files?.[0];
@@ -39,6 +108,7 @@ export const DocumentEditor = () => {
 
   const handleDownload = async () => {
     const editor = editorRef.current!.documentEditor;
+
     const blob = await editor.saveAsBlob('Docx');
 
     const file = new File([blob], `Document.docx`, {
@@ -53,26 +123,32 @@ export const DocumentEditor = () => {
     let saveTimeout: NodeJS.Timeout | null = null;
 
     const debouncedSave = async () => {
-      const blob = await editor.saveAsBlob('Sfdt');
+      try {
+        const blob = await editor.saveAsBlob('Sfdt');
 
-      const data = await blob.text();
+        const data = await blob.text();
 
-      if (documentId) {
-        await fetch(`http://localhost:3000/api/documents/${documentId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ data }),
-        });
-      } else {
-        await fetch('http://localhost:3000/api/documents', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ data }),
-        });
+        if (documentId) {
+          await fetch(`http://localhost:3000/api/documents/${documentId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ data }),
+          });
+        } else {
+          await fetch('http://localhost:3000/api/documents', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ data }),
+          });
+        }
+      } catch (err: any) {
+        alert(
+          `Your document was not auto saved, make sure you are connected to the internet. Error message: ${err?.message}`
+        );
       }
     };
 
@@ -95,21 +171,38 @@ export const DocumentEditor = () => {
 
     const loadSavedDocument = async () => {
       const response = await fetch('http://localhost:3000/api/documents/saved');
-      if (!response.ok) return;
+      if (!response.ok) {
+        alert(`Your document could not be loaded, try refreshing the page!`);
+        return;
+      }
 
       const data = await response.json();
       if (data && data.data) {
         editor.open(data.data);
         setDocumentId(data.id);
+        setTimeout(updateClausesList, 500);
       }
     };
 
     loadSavedDocument();
   }, []);
 
+  const handleAddNextClause = (insertBeforeName: string) => {
+    const nextClause = predefinedClauses.find(
+      (predefined) => !clauses.includes(predefined.name)
+    );
+
+    if (!nextClause) {
+      alert('There are no clauses left.');
+      return;
+    }
+
+    insertClauseBefore(insertBeforeName, nextClause);
+  };
+
   return (
     <>
-      <div className="p-4 lg:pt-12 w-full h-screen flex flex-col">
+      <div className="p-4 w-full h-screen flex flex-col">
         <div className="flex flex-col lg:flex-row justify-between gap-2 lg:gap-0 lg:items-center mb-4">
           <div className="inline-flex space-x-4 items-center">
             <button
@@ -166,6 +259,49 @@ export const DocumentEditor = () => {
               'Find',
             ]}
             contentChange={(e) => {}}
+          />
+        </div>
+      </div>
+
+      <div className="p-4 lg:pl-0 space-y-4 min-w-80 flex flex-col flex-1">
+        <h1 className="text-white">Clauses</h1>
+
+        <div className="bg-card-background flex flex-col h-full rounded-lg p-4 space-y-2 items-center">
+          {clauses.map((name) => (
+            <div
+              key={name}
+              className="w-full space-y-2 items-center flex flex-col"
+            >
+              <Button
+                icon="plus"
+                onClick={() => handleAddNextClause(name)}
+                text="Add Clause"
+              />
+
+              <div className="bg-background rounded-lg p-2 flex flex-row justify-between gap-4 w-full items-center">
+                <h2 className="text-white text-sm">{name}</h2>
+                <div className="space-x-2 inline-flex">
+                  <button
+                    onClick={() =>
+                      editorRef.current!.documentEditor.selection.selectBookmark(
+                        name
+                      )
+                    }
+                  >
+                    <SaveIcon className="stroke-secondary w-5" />
+                  </button>
+                  <button onClick={() => deleteClause(name)}>
+                    <XIcon className="stroke-secondary w-5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <Button
+            icon="plus"
+            onClick={() => handleAddNextClause('__END__')}
+            text="Add Clause"
           />
         </div>
       </div>
