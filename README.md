@@ -15,7 +15,7 @@ Node
 
 ### Installation
 
-Open the terminal in {path-to-project}/bequest-interview-v2
+Open the terminal in {path-to-project}/bequest-interview
 
 ```
 npm install
@@ -28,8 +28,8 @@ On linux, it can be done by closely following these steps:
 psql postgres
 # now inside the postgres terminal acting as postgres user
 
-CREATE ROLE gymsesh_local WITH LOGIN PASSWORD 'GymS&sh';
-ALTER ROLE gymsesh_local SUPERUSER;
+CREATE ROLE bequest_interview WITH LOGIN PASSWORD 'B&qu&st';
+ALTER ROLE bequest_interview SUPERUSER;
 
 exit
 ```
@@ -77,7 +77,7 @@ Although the video was clear, I had to make a few assumptions based on the task 
 - Overall, it does what the requirements describe, but if this was to be deployed for a real-world scenario, I would:
   - Spend more time improving the clauses chunks handlers (and probably use `xmldom` like suggested)
   - Add versioning for users to be able to recover autosaved changes (and probably add a version menu somewhere)
-  - Improve clauses database with a unified schema for them (Sfdt is weird and not very descriptive, i did not find many docs about it as well)
+  - Improve clauses database with a unified schema for them (Sfdt is weird and not very descriptive, I did not find many docs about it as well)
   - Of course, use react-query for better API communication and state and cache management
   - Add tests (!!!!)
 - That's all :) thanks for taking the time to read this
