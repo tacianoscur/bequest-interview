@@ -13,7 +13,7 @@ import {
 import '@syncfusion/ej2-react-documenteditor/styles/material.css';
 import '@syncfusion/ej2-splitbuttons/styles/material.css';
 import { ChevronLeftIcon } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const autoSaveBookmarkKey = '__autosave_cursor__';
 
@@ -23,6 +23,8 @@ registerLicense(
 );
 
 export const DocumentEditor = () => {
+  const [documentId, setDocumentId] = useState<number | undefined>();
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<DocumentEditorContainerComponent>(null);
 
@@ -48,52 +50,58 @@ export const DocumentEditor = () => {
 
   useEffect(() => {
     const editor = editorRef.current!.documentEditor;
+    let saveTimeout: NodeJS.Timeout | null = null;
 
-    editor.contentChange = async () => {
-      // Remove previous cursor bookmark if exists
-      if (editor.getBookmarks().includes(autoSaveBookmarkKey)) {
-        editor.editor.deleteBookmark(autoSaveBookmarkKey);
+    const debouncedSave = async () => {
+      const blob = await editor.saveAsBlob('Sfdt');
+
+      const data = await blob.text();
+
+      if (documentId) {
+        await fetch(`http://localhost:3000/api/documents/${documentId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ data }),
+        });
+      } else {
+        await fetch('http://localhost:3000/api/documents', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ data }),
+        });
       }
-      // Insert new cursor bookmark
-      editor.editor.insertBookmark(autoSaveBookmarkKey);
-
-      const blob = await editor.saveAsBlob('Docx');
-      const file = new File([blob], 'autosave.docx', {
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      });
-
-      const formData = new FormData();
-      formData.append('file', file);
-
-      await fetch('http://localhost:3000/api/save', {
-        method: 'POST',
-        body: formData,
-      });
     };
-  }, []);
+
+    editor.contentChange = () => {
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+      }
+      saveTimeout = setTimeout(debouncedSave, 1000 * 1); // 1s
+    };
+
+    return () => {
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+      }
+    };
+  }, [documentId]);
 
   useEffect(() => {
     const editor = editorRef.current!.documentEditor;
 
-    const onDocumentChange = () => {
-      if (editor.getBookmarks().includes(autoSaveBookmarkKey)) {
-        editor.selection.navigateBookmark(autoSaveBookmarkKey);
-      }
-      // Unsubscribe after running once
-      editor.documentChange = () => {};
-    };
-
-    editor.documentChange = onDocumentChange;
-
     const loadSavedDocument = async () => {
-      const response = await fetch('http://localhost:3000/api/load');
-      const blob = await response.blob();
+      const response = await fetch('http://localhost:3000/api/documents/saved');
+      if (!response.ok) return;
 
-      const file = new File([blob], 'autosave.docx', {
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      });
-
-      editor.open(file);
+      const data = await response.json();
+      if (data && data.data) {
+        editor.open(data.data);
+        setDocumentId(data.id);
+      }
     };
 
     loadSavedDocument();

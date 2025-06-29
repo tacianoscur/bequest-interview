@@ -1,5 +1,5 @@
-import { DocumentEditor } from './DocumentEditor';
-import NavBar from '../components/NavBar';
+import { DocumentEditor } from './components/DocumentEditor';
+import NavBar from './components/NavBar';
 import {
   FileIcon,
   FileQuestionMarkIcon,
@@ -11,7 +11,7 @@ import {
   UsersIcon,
   XIcon,
 } from 'lucide-react';
-import Button from '../components/Button';
+import Button from './components/Button';
 
 export function App() {
   return (

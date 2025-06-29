@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Document" ALTER COLUMN "data" SET DATA TYPE TEXT;
